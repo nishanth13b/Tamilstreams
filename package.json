@@ -1,18 +1,14 @@
 {
-  "name": "tamil-stremio-addon",
+  "name": "tamilstreams",
   "version": "1.0.0",
-  "description": "Tamil Movies & Shows Add-on for Stremio",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "stremio-addon-sdk": "^1.0.0",
-    "node-fetch": "^2.6.9",
-    "cheerio": "^1.0.0-rc.12",
-    "fuse.js": "^6.6.2"
+    "stremio-addon-sdk": "^1.5.3"
   },
   "engines": {
-    "node": "18.x"
+    "node": "20.x"
   }
 }
