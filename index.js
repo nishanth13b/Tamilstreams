@@ -126,4 +126,26 @@ const port = process.env.PORT || 3000;
 addonInterface.listen(port, () => {
   console.log(`Stremio addon running on port ${port}`);
 });
+// --- after all builder.define... handlers ---
+try {
+  const addonInterface = builder.getInterface();
+  const port = process.env.PORT || 3000;
+
+  // catch unhandled rejections / exceptions and log them
+  process.on('unhandledRejection', (reason, p) => {
+    console.error('UNHANDLED REJECTION:', reason, p);
+  });
+  process.on('uncaughtException', err => {
+    console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
+    // optional: exit(1) so Heroku restarts the dyno
+    process.exit(1);
+  });
+
+  addonInterface.listen(port, () => {
+    console.log(`Stremio addon running on port ${port}`);
+  });
+} catch (err) {
+  console.error('Fatal error during startup:', err && err.stack ? err.stack : err);
+  process.exit(1);
+}
 
