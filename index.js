@@ -120,4 +120,10 @@ builder.defineStreamHandler(async args => {
   return { streams };
 });
 
-module.exports = builder.getInterface();
+const addonInterface = builder.getInterface();
+const port = process.env.PORT || 3000;
+
+addonInterface.listen(port, () => {
+  console.log(`Stremio addon running on port ${port}`);
+});
+
