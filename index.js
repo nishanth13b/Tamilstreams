@@ -1,3 +1,4 @@
+const express = require("express");
 const { addonBuilder } = require("stremio-addon-sdk");
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
@@ -23,7 +24,7 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
-// Catalog Handler
+// ----- Catalog Handler -----
 builder.defineCatalogHandler(async args => {
   let metas = [];
   if (args.id === "tamil-movies") {
@@ -58,7 +59,7 @@ builder.defineCatalogHandler(async args => {
   return { metas };
 });
 
-// Meta Handler
+// ----- Meta Handler -----
 builder.defineMetaHandler(async args => {
   const id = args.id.split("-")[1];
   const type = args.type === "series" ? "tv" : "movie";
@@ -76,7 +77,7 @@ builder.defineMetaHandler(async args => {
   };
 });
 
-// Stream Handler
+// ----- Stream Handler -----
 builder.defineStreamHandler(async args => {
   const tmdbId = args.id;
   const tmdbMeta = tmdbCache[tmdbId];
@@ -120,32 +121,23 @@ builder.defineStreamHandler(async args => {
   return { streams };
 });
 
+// ----- Express Setup -----
 const addonInterface = builder.getInterface();
 const port = process.env.PORT || 3000;
 
-addonInterface.listen(port, () => {
+const app = express();
+app.use(addonInterface);
+
+// ----- Error Handling -----
+process.on('unhandledRejection', (reason, p) => {
+  console.error('UNHANDLED REJECTION:', reason, p);
+});
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
+  process.exit(1);
+});
+
+// ----- Start Server -----
+app.listen(port, () => {
   console.log(`Stremio addon running on port ${port}`);
 });
-// --- after all builder.define... handlers ---
-try {
-  const addonInterface = builder.getInterface();
-  const port = process.env.PORT || 3000;
-
-  // catch unhandled rejections / exceptions and log them
-  process.on('unhandledRejection', (reason, p) => {
-    console.error('UNHANDLED REJECTION:', reason, p);
-  });
-  process.on('uncaughtException', err => {
-    console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
-    // optional: exit(1) so Heroku restarts the dyno
-    process.exit(1);
-  });
-
-  addonInterface.listen(port, () => {
-    console.log(`Stremio addon running on port ${port}`);
-  });
-} catch (err) {
-  console.error('Fatal error during startup:', err && err.stack ? err.stack : err);
-  process.exit(1);
-}
-
