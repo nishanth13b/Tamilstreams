@@ -2,14 +2,13 @@ const { addonBuilder } = require("stremio-addon-sdk");
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 const Fuse = require("fuse.js");
+const express = require("express");
 
 // Replace with your TMDb API key
 const TMDB_API_KEY = "2b855e5dedf0a8d134b2b2324d051065";
 
-// Cache for TMDb metadata
 let tmdbCache = {};
 
-// Addon manifest
 const manifest = {
   id: "org.tamil.stremio",
   version: "1.0.0",
@@ -25,137 +24,120 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
-// ----- Catalog Handler -----
+// Catalog Handler
 builder.defineCatalogHandler(async args => {
   let metas = [];
-
-  try {
-    if (args.id === "tamil-movies") {
-      const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=ta&sort_by=release_date.desc&page=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      metas = data.results.map(movie => {
-        tmdbCache["movie-" + movie.id] = movie;
-        return {
-          id: "movie-" + movie.id,
-          type: "movie",
-          name: movie.title,
-          poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : "",
-          description: movie.overview
-        };
-      });
-    } else if (args.id === "tamil-series") {
-      const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ta&sort_by=first_air_date.desc&page=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      metas = data.results.map(series => {
-        tmdbCache["series-" + series.id] = series;
-        return {
-          id: "series-" + series.id,
-          type: "series",
-          name: series.name,
-          poster: series.poster_path ? `https://image.tmdb.org/t/p/w500${series.poster_path}` : "",
-          description: series.overview
-        };
-      });
-    }
-  } catch (err) {
-    console.error("Error fetching catalog:", err);
+  if (args.id === "tamil-movies") {
+    const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_original_language=ta&sort_by=release_date.desc&page=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    metas = data.results.map(movie => {
+      tmdbCache["movie-" + movie.id] = movie;
+      return {
+        id: "movie-" + movie.id,
+        type: "movie",
+        name: movie.title,
+        poster: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : "",
+        description: movie.overview
+      };
+    });
+  } else if (args.id === "tamil-series") {
+    const url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&with_original_language=ta&sort_by=first_air_date.desc&page=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    metas = data.results.map(series => {
+      tmdbCache["series-" + series.id] = series;
+      return {
+        id: "series-" + series.id,
+        type: "series",
+        name: series.name,
+        poster: series.poster_path ? `https://image.tmdb.org/t/p/w500${series.poster_path}` : "",
+        description: series.overview
+      };
+    });
   }
-
   return { metas };
 });
 
-// ----- Meta Handler -----
+// Meta Handler
 builder.defineMetaHandler(async args => {
-  try {
-    const id = args.id.split("-")[1];
-    const type = args.type === "series" ? "tv" : "movie";
-    const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=en-US`);
-    const meta = await res.json();
-
-    return {
-      meta: {
-        id: args.id,
-        type: args.type,
-        name: meta.title || meta.name,
-        poster: meta.poster_path ? `https://image.tmdb.org/t/p/w500${meta.poster_path}` : "",
-        description: meta.overview,
-        releaseInfo: meta.release_date || meta.first_air_date
-      }
-    };
-  } catch (err) {
-    console.error("Error fetching meta:", err);
-    return { meta: null };
-  }
-});
-
-// ----- Stream Handler -----
-builder.defineStreamHandler(async args => {
-  try {
-    const tmdbId = args.id;
-    const tmdbMeta = tmdbCache[tmdbId];
-    if (!tmdbMeta) return { streams: [] };
-
-    const title = tmdbMeta.title || tmdbMeta.name;
-    let streams = [];
-
-    // Piratebay placeholder
-    streams.push({
-      title: `${title} (Piratebay)`,
-      url: "magnet:?xt=urn:btih:EXAMPLEHASH&dn=" + encodeURIComponent(title)
-    });
-
-    // Other Tamil streaming sites (placeholder scraping)
-    const sites = [
-      "https://tamilblasters.media",
-      "https://www.1tamilmv.mba",
-      "https://einthusan.tv",
-      "https://tamildhool.net",
-      "https://tamilcrow.net"
-    ];
-
-    for (let site of sites) {
-      try {
-        const res = await fetch(site);
-        const html = await res.text();
-        const $ = cheerio.load(html);
-        $("a").each((i, el) => {
-          const linkTitle = $(el).text().trim();
-          const url = $(el).attr("href");
-          if (linkTitle.toLowerCase().includes(title.toLowerCase()) && url) {
-            streams.push({ title: `${linkTitle} (${site})`, url });
-          }
-        });
-      } catch (err) {
-        console.log("Error scraping site:", site, err);
-      }
+  const id = args.id.split("-")[1];
+  const type = args.type === "series" ? "tv" : "movie";
+  const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=en-US`);
+  const meta = await res.json();
+  return {
+    meta: {
+      id: args.id,
+      type: args.type,
+      name: meta.title || meta.name,
+      poster: meta.poster_path ? `https://image.tmdb.org/t/p/w500${meta.poster_path}` : "",
+      description: meta.overview,
+      releaseInfo: meta.release_date || meta.first_air_date
     }
-
-    return { streams };
-  } catch (err) {
-    console.error("Error in stream handler:", err);
-    return { streams: [] };
-  }
+  };
 });
 
-// ----- Start the Addon -----
-try {
-  const addonInterface = builder.getInterface();
-  const port = process.env.PORT || 3000;
+// Stream Handler
+builder.defineStreamHandler(async args => {
+  const tmdbId = args.id;
+  const tmdbMeta = tmdbCache[tmdbId];
+  if (!tmdbMeta) return { streams: [] };
 
-  process.on("unhandledRejection", (reason, p) => {
-    console.error("UNHANDLED REJECTION:", reason, p);
-  });
-  process.on("uncaughtException", err => {
-    console.error("UNCAUGHT EXCEPTION:", err && err.stack ? err.stack : err);
-    process.exit(1);
+  const title = tmdbMeta.title || tmdbMeta.name;
+  let streams = [];
+
+  // Piratebay placeholder
+  streams.push({
+    title: `${title} (Piratebay)`,
+    url: "magnet:?xt=urn:btih:EXAMPLEHASH&dn=" + encodeURIComponent(title)
   });
 
-  addonInterface.listen(port, () => {
-    console.log(`Stremio addon running on port ${port}`);
-  });
-} catch (err) {
-  console.error("Fatal error during startup:", err && err.stack ? err.stack : err);
+  // Placeholder for other Tamil streaming sites
+  const sites = [
+    "https://tamilblasters.media",
+    "https://www.1tamilmv.mba",
+    "https://einthusan.tv",
+    "https://tamildhool.net",
+    "https://tamilcrow.net"
+  ];
+
+  for (let site of sites) {
+    try {
+      const res = await fetch(site);
+      const html = await res.text();
+      const $ = cheerio.load(html);
+      $("a").each((i, el) => {
+        const linkTitle = $(el).text().trim();
+        const url = $(el).attr("href");
+        if (linkTitle.toLowerCase().includes(title.toLowerCase()) && url) {
+          streams.push({ title: `${linkTitle} (${site})`, url });
+        }
+      });
+    } catch (err) {
+      console.log("Error scraping site:", site, err);
+    }
+  }
+
+  return { streams };
+});
+
+// --- Express setup ---
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Mount the addon interface at root
+app.use('/', builder.getInterface());
+
+// Catch unhandled errors
+process.on('unhandledRejection', (reason, p) => {
+  console.error('UNHANDLED REJECTION:', reason, p);
+});
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
   process.exit(1);
-}
+});
+
+// Start server
+app.listen(port, () => {
+  console.log(`Stremio addon running on port ${port}`);
+});
