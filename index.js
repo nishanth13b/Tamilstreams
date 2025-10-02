@@ -2,7 +2,6 @@ const { addonBuilder } = require("stremio-addon-sdk");
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 const Fuse = require("fuse.js");
-const express = require("express");
 
 // Replace with your TMDb API key
 const TMDB_API_KEY = "2b855e5dedf0a8d134b2b2324d051065";
@@ -24,7 +23,7 @@ const manifest = {
 
 const builder = new addonBuilder(manifest);
 
-// Catalog Handler
+// --- Catalog Handler ---
 builder.defineCatalogHandler(async args => {
   let metas = [];
   if (args.id === "tamil-movies") {
@@ -59,7 +58,7 @@ builder.defineCatalogHandler(async args => {
   return { metas };
 });
 
-// Meta Handler
+// --- Meta Handler ---
 builder.defineMetaHandler(async args => {
   const id = args.id.split("-")[1];
   const type = args.type === "series" ? "tv" : "movie";
@@ -77,7 +76,7 @@ builder.defineMetaHandler(async args => {
   };
 });
 
-// Stream Handler
+// --- Stream Handler ---
 builder.defineStreamHandler(async args => {
   const tmdbId = args.id;
   const tmdbMeta = tmdbCache[tmdbId];
@@ -92,7 +91,7 @@ builder.defineStreamHandler(async args => {
     url: "magnet:?xt=urn:btih:EXAMPLEHASH&dn=" + encodeURIComponent(title)
   });
 
-  // Placeholder for other Tamil streaming sites
+  // Scraping Tamil streaming sites
   const sites = [
     "https://tamilblasters.media",
     "https://www.1tamilmv.mba",
@@ -121,23 +120,19 @@ builder.defineStreamHandler(async args => {
   return { streams };
 });
 
-// --- Express setup ---
-const app = express();
+// --- Start Addon Interface ---
+const addonInterface = builder.getInterface();
 const port = process.env.PORT || 3000;
 
-// Mount the addon interface at root
-app.use('/', builder.getInterface());
+addonInterface.listen(port, () => {
+  console.log(`Stremio addon running on port ${port}`);
+});
 
-// Catch unhandled errors
+// --- Error Handling ---
 process.on('unhandledRejection', (reason, p) => {
   console.error('UNHANDLED REJECTION:', reason, p);
 });
 process.on('uncaughtException', err => {
   console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
   process.exit(1);
-});
-
-// Start server
-app.listen(port, () => {
-  console.log(`Stremio addon running on port ${port}`);
 });
